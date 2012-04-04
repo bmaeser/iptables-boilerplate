@@ -78,12 +78,13 @@ opens ports for HTTPS for any IP
 Add all source IPs you want to have full access to this host.
 One IP per line
 
-SYNTAX:
+###### SYNTAX:
+
 n.n.n.n/m.m.m.m  - Where n.n.n.n is the IP address range and m.m.m.m is the netmask.
 
 n.n.n.n/m - Where n.n.n.n is the IP address range and m is the bitmask.
 
-EXAMPLEs:
+###### EXAMPLEs:
 
     192.168.0.1
     192.168.1.0/8
@@ -93,12 +94,13 @@ EXAMPLEs:
 Add all source IPs you want to COMPLETELY BLOCK
 One IP per line
 
-SYNTAX:
+###### SYNTAX:
+
 n.n.n.n/m.m.m.m  - Where n.n.n.n is the IP address range and m.m.m.m is the netmask.
 
 n.n.n.n/m - Where n.n.n.n is the IP address range and m is the bitmask.
 
-EXAMPLEs:
+###### EXAMPLEs:
 
     192.168.0.1
     192.168.1.0/8
