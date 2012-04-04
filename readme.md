@@ -80,6 +80,7 @@ One IP per line
 
 SYNTAX:
 n.n.n.n/m.m.m.m  - Where n.n.n.n is the IP address range and m.m.m.m is the netmask.
+
 n.n.n.n/m - Where n.n.n.n is the IP address range and m is the bitmask.
 
 EXAMPLEs:
@@ -94,6 +95,7 @@ One IP per line
 
 SYNTAX:
 n.n.n.n/m.m.m.m  - Where n.n.n.n is the IP address range and m.m.m.m is the netmask.
+
 n.n.n.n/m - Where n.n.n.n is the IP address range and m is the bitmask.
 
 EXAMPLEs:
