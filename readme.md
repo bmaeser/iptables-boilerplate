@@ -6,7 +6,7 @@ iptables-boilerplate is a set of predefined firewall rules that are typically us
 its not a set of rules, designed to secure your home or office-network or to setup a router or gatweay.
 think of "lamp"-servers.
 
-iptables-boilerplate is tested on:
+#### iptables-boilerplate is tested on
 * Debian 5.0 / Lenny (oldstable)
 * Debian 6.0 / Squeeze (stable)
 * Debian 7.0 / Wheezy (testing)
