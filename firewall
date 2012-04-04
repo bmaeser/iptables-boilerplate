@@ -1,0 +1,293 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          firewall
+# Required-Start:    $local_fs $remote_fs $network
+# Required-Stop:     $local_fs $remote_fs $network
+# Default-Start:     S
+# Default-Stop:      0 6
+# Short-Description: start/stop iptables-firewall
+### END INIT INFO
+
+# Author: Bernhard Mäser <bernhard.maeser@scale-it.at>
+
+#################################################################
+
+## PLACE THIS FILE at /etc/init.d/firewall
+## MAKE SURE ITS EXECUTABLE (chmod 755 /etc/init.d/firewall)
+## UPDATE YOUR RC (update-rc.d firewall defaults)
+
+
+#################################################################
+## BEWARE:
+## WE ALLOW ALL --OUTPUT-- IPv4 TRAFFIC BY DEFAULT
+#################################################################
+
+IPTABLES=/sbin/iptables
+IP6TABLES=/sbin/ip6tables
+
+case "$1" in
+    start)
+        echo "starting firewall..."
+
+        ## DELETE OLD RULES
+        $IPTABLES -F
+        $IPTABLES -X
+
+        #################################################################
+        # DEFAULT POLICIES
+        #################################################################
+
+        $IPTABLES -P INPUT DROP
+        $IPTABLES -P OUTPUT ACCEPT
+
+        #################################################################
+        # CUSTOM CHAINS
+        #################################################################
+
+        ## portscan drop
+        $IPTABLES -N portscan_drop
+        $IPTABLES -A portscan_drop -m limit --limit 7200/h -j LOG --log-prefix "POSSIBLE PORTSCAN"
+        $IPTABLES -A portscan_drop -j DROP
+
+        #################################################################
+        # IPv4 FORWARDING 
+        #################################################################
+
+        ## drop IPv4 forwarding
+        $IPTABLES -P FORWARD DROP
+
+        ## disable IPv4 forwarding ( ! overwrites sysctl settings ! )
+        echo 0 > /proc/sys/net/ipv4/ip_forward
+        echo 0 > /proc/sys/net/ipv4/conf/all/forwarding
+        echo 0 > /proc/sys/net/ipv4/conf/default/forwarding
+
+        #################################################################
+        # ALLOW DEFAULTS
+        #################################################################
+
+        ## allow anything on loopback
+        $IPTABLES -A INPUT -i lo -j ACCEPT
+        $IPTABLES -A OUTPUT -o lo -j ACCEPT
+
+        ## allow ICMP
+        $IPTABLES -A INPUT -p icmp -j ACCEPT
+
+        ## allow all packets that already have a connection
+        $IPTABLES -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+        $IPTABLES -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+        ##################################################################
+        # EXTERNAL CONFIGS
+        ##################################################################
+
+        ## ACCEPT ALL CONNECTIONS FROM WHITELIST FILE /etc/firewall/ip-whitelist.conf
+        for IP in `cat /etc/firewall/ip-whitelist.conf | sed 's/\s/_/g' | grep -v "^#"`; do
+            $IPTABLES -A INPUT -s $IP -m state --state NEW -j ACCEPT
+        done;
+
+        ## DROP ALL CONNECTIONS FROM BLACKLIST FILE /etc/firewall/ip-blacklist.conf
+        for IP in `cat /etc/firewall/ip-blacklist.conf | sed 's/\s/_/g' | grep -v "^#"`; do
+            $IPTABLES -A INPUT -s $IP -m state --state NEW -j DROP
+        done;
+
+        # ALLOWED PORTS/PROTOCOLS FROM /etc/firewall/services.conf
+        cat /etc/firewall/services.conf | grep -v "^#" | while read line; do
+            [ -z "$line" ] && continue
+    
+            # INITIALIZE
+            PORT=""
+            PROTO=""
+            IP="0.0.0.0/0"
+            while IFS=' ' read -ra SERVICES; do
+                PORT=`echo ${SERVICES[0]} | cut -d"/" -f1`
+                PROTO=`echo ${SERVICES[0]} | cut -d"/" -f2`
+                if [ ${#SERVICES[@]} == 2 ]; then
+                    IP=${SERVICES[1]}
+                fi;
+                $IPTABLES -A INPUT -p $PROTO -s $IP --dport $PORT -m state --state NEW -j ACCEPT
+                done <<< "$line"
+        done;
+
+        # EXECUTE ALL CUSTOM SCRIPTS IN /etc/firewall/custom
+        for F in /etc/firewall/custom/*; do
+            . $F
+        done;
+
+        #################################################################
+        # drop and log invalid packages
+        #################################################################
+
+        $IPTABLES -A INPUT -m state --state INVALID -m limit --limit 7200/h -j LOG --log-prefix "INPUT INVALID "
+        $IPTABLES -A INPUT -m state --state INVALID -j DROP
+        $IPTABLES -A OUTPUT -m state --state INVALID -m limit --limit 7200/h -j LOG --log-prefix "OUTPUT INVALID "
+        $IPTABLES -A OUTPUT -m state --state INVALID -j DROP
+
+        ##################################################################
+        # BROADCAST AND MULTICAST
+        ##################################################################
+
+        $IPTABLES -A INPUT -m pkttype --pkt-type broadcast -j DROP
+        $IPTABLES -A INPUT -m pkttype --pkt-type multicast -j DROP
+
+        ##################################################################
+        # PORTSCAN DETECTION
+        ##################################################################
+
+        ## nmap Null scans / no flags
+        $IPTABLES -A INPUT -p tcp --tcp-flags ALL NONE -j portscan_drop
+        ## nmap FIN stealth scan
+        $IPTABLES -A INPUT -p tcp --tcp-flags ALL FIN -j portscan_drop
+        ## SYN + FIN
+        $IPTABLES -A INPUT -p tcp --tcp-flags SYN,FIN SYN,FIN -j portscan_drop
+        ## SYN + RST
+        $IPTABLES -A INPUT -p tcp --tcp-flags SYN,RST SYN,RST -j portscan_drop
+        ## FIN + RST
+        $IPTABLES -A INPUT -p tcp --tcp-flags FIN,RST FIN,RST -j portscan_drop
+        ## FIN + URG + PSH
+        $IPTABLES -A INPUT -p tcp --tcp-flags ALL FIN,URG,PSH -j portscan_drop
+        ## XMAS
+        $IPTABLES -A INPUT -p tcp --tcp-flags ALL URG,ACK,PSH,RST,SYN,FIN -j portscan_drop
+        ## ALL
+        $IPTABLES -A INPUT -p tcp --tcp-flags ALL ALL -j portscan_drop
+        ## FIN/PSH/URG without ACK
+        $IPTABLES -A INPUT -p tcp --tcp-flags ACK,FIN FIN -j portscan_drop
+        $IPTABLES -A INPUT -p tcp --tcp-flags ACK,PSH PSH -j portscan_drop
+        $IPTABLES -A INPUT -p tcp --tcp-flags ACK,URG URG -j portscan_drop
+
+        ##################################################################
+        # USEFULL OPTIONS ( ! overwrites sysctl settings ! )
+        ##################################################################
+
+        ## allow only ICMP redirects from our own gateway
+        echo 1 > /proc/sys/net/ipv4/conf/all/secure_redirects
+        echo 1 > /proc/sys/net/ipv4/conf/default/secure_redirects
+
+        ## dont accept ICMP redirects
+        echo 0 > /proc/sys/net/ipv4/conf/all/accept_redirects
+        echo 0 > /proc/sys/net/ipv4/conf/default/accept_redirects
+
+        ## dont sent ICMP redirects
+        echo 0 > /proc/sys/net/ipv4/conf/all/send_redirects
+        echo 0 > /proc/sys/net/ipv4/conf/default/send_redirects
+
+        ## ignore broadcast/multicast ICMP // smurf-attack prevention
+        echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+
+        ## ignore bogus error responses
+        echo 1 > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses
+
+        ## dont ignore pings
+        echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_all
+
+        ## allow no source route packages
+        echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
+        echo 0 > /proc/sys/net/ipv4/conf/default/accept_source_route
+
+        ## we dont want to proxy arp
+        echo 0 > /proc/sys/net/ipv4/conf/all/proxy_arp
+        echo 0 > /proc/sys/net/ipv4/conf/default/proxy_arp
+
+        ## enable syn-cookies // syn-flood prevention
+        echo 1 > /proc/sys/net/ipv4/tcp_syncookies
+        echo 2048 > /proc/sys/net/ipv4/tcp_max_syn_backlog
+        echo 5 > /proc/sys/net/ipv4/tcp_syn_retries
+        echo 5 > /proc/sys/net/ipv4/tcp_synack_retries
+
+        ## enable reverse path filter // RFC1812 // spoofing attack prevention
+        echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
+        echo 1 > /proc/sys/net/ipv4/conf/default/rp_filter
+
+        ## no relaying of bootp
+        echo 0 > /proc/sys/net/ipv4/conf/all/bootp_relay
+        echo 0 > /proc/sys/net/ipv4/conf/default/bootp_relay
+
+        ## do not log martian packets
+        echo 0 > /proc/sys/net/ipv4/conf/all/log_martians
+        echo 0 > /proc/sys/net/ipv4/conf/default/log_martians
+
+        ## dont allow SRR
+        echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
+        echo 0 > /proc/sys/net/ipv4/conf/default/accept_source_route
+
+        ## enable SACK
+        echo 1 > /proc/sys/net/ipv4/tcp_sack
+        echo 1 > /proc/sys/net/ipv4/tcp_dsack
+        echo 1 > /proc/sys/net/ipv4/tcp_fack
+
+        #################################################################
+        # IPv6 
+        #################################################################
+
+        ## allow on loopback
+        $IP6TABLES -A INPUT -i lo -j ACCEPT
+        $IP6TABLES -A OUTPUT -o lo -j ACCEPT
+
+        ## drop all ip IPv6 traffic
+        $IP6TABLES -P INPUT DROP
+        $IP6TABLES -P OUTPUT DROP
+
+        ## drop IPv6 forwarding
+        $IP6TABLES -P FORWARD DROP
+        ## disable IPv6 forwarding ( ! overwrites sysctl settings ! )
+        echo 0 > /proc/sys/net/ipv6/conf/all/forwarding
+        echo 0 > /proc/sys/net/ipv6/conf/default/forwarding
+
+        ## disable IPv6 ( ! overwrites sysctl settings ! )
+        #echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+        #echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6
+
+        ##################################################################
+        # FINAL RULES
+        ##################################################################
+
+        ## log all other packages and reject them
+        $IPTABLES -A INPUT -j LOG
+        $IPTABLES -A INPUT -j REJECT
+        
+        echo "firewall started"
+        ;;
+
+    stop)
+        echo "stopping firewall..."
+        
+        ## delete old rules
+        $IPTABLES -F
+        $IPTABLES -X
+        
+        ## allow anything
+        $IPTABLES -P INPUT ACCEPT
+        $IPTABLES -P OUTPUT ACCEPT
+        $IPTABLES -P FORWARD ACCEPT
+        
+        echo "firewall stopped"
+        ;;
+
+    status)
+        echo "##################################################################"
+        echo "## FILTER"
+        echo "##################################################################"
+        $IPTABLES -L -vn
+        echo "##################################################################"
+        echo "## NAT"
+        echo "##################################################################"
+        $IPTABLES -t nat -L -vn
+        echo "##################################################################"
+        echo "## MANGLE"
+        echo "##################################################################"
+        $IPTABLES -t mangle -L -vn
+        ;;
+        
+    restart|reload|force-reload)
+        $0 stop
+        sleep 1
+        $0 start
+        ;;
+
+      *)
+        echo "Your are doing it wrong."
+        echo "Syntax: $0 {start|stop|restart|reload|force-reload|status}"
+        exit 1
+        ;;
+
+    esac
