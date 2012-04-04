@@ -4,7 +4,17 @@ rock solid default firewall-rules for webhosts
 ## What is this?
 iptables-boilerplate is a set of predefined firewall rules that are typically used on "webhosts".
 its not a set of rules, designed to secure your home or office-network or to setup a router or gatweay.
-think of "lamp"-servers 
+think of "lamp"-servers.
+
+iptables-boilerplate is tested on:
+* Debian 5.0 / Lenny (oldstable)
+* Debian 6.0 / Squeeze (stable)
+* Debian 7.0 / Wheezy (testing)
+* Ubuntu 10.04 LTS / Lucid
+* Ubuntu 10.10 / Maverick
+* Ubuntu 11.04 / Natty
+* Ubuntu 11.10 / Oneiric
+* Ubuntu 12.04 - BETA1 / Precise
 
 #### Features
 * rock solid defaults
