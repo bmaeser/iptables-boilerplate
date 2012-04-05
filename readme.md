@@ -36,6 +36,7 @@ checkout the github repo and install the files
     git clone git://github.com/bmaeser/iptables-boilerplate.git
     cd iptables-boilerplate
     sudo cp firewall /etc/init.d/firewall
+    cd etc/firewall/
     sudo cp *.conf /etc/firewall/
     
 make sure firewall ist executable and update runnlevels
@@ -52,14 +53,16 @@ Feel free to read the firewall-script itself and comment/uncomment what you like
 #### services.conf
 This file is used to open ports for services like ssh or http(s) in your firewall.
 
-SYNTAX:
+###### SYNTAX:
 
 PORT/PROTOCOLL SOURCE
 where SOURCE is the source ip or network
+
 n.n.n.n/m - Where n.n.n.n is the IP address range and m is the bitmask.
+
 if SOURCE is empty it defaults to 0.0.0.0/0 (which is any IP)
 
-EXAMPLEs:
+###### EXAMPLEs:
 
 opens ports for SSH for IP 192.168.0.1:
 
@@ -110,8 +113,21 @@ n.n.n.n/m - Where n.n.n.n is the IP address range and m is the bitmask.
 Every file/script you place here will be executed during firewall-start.
 Place your custom rules in here.
 
+## Usage
+If you updated your runlevels, the firewall starts every time you boot your system.
+However, you can manually start/stop/restart, e.g. to update changed settings.
+
+    /etc/init.d/firewall (start|stop|restart|reload|force-reload|status)
+
+* start: starts the firewall
+* stop: stops the firewall
+* restart, reload, force-reload: restarts the firewall (all three the same)
+* status: print out the status of the firewall, shows all entries in iptables
+
 ## How to contribute
-pull request 
+fork + hack + pull request please :-)
+
+thx
 
 
 ## Licence
