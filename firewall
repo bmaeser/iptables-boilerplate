@@ -86,11 +86,6 @@ case "$1" in
         # EXTERNAL CONFIGS
         ##################################################################
 
-        # EXECUTE ALL CUSTOM SCRIPTS IN /etc/firewall/custom
-        for F in /etc/firewall/custom/*; do
-            . $F
-        done;
-
         ## ACCEPT ALL CONNECTIONS FROM WHITELIST FILE /etc/firewall/ip-whitelist.conf
         for IP in `cat /etc/firewall/ip-whitelist.conf | sed 's/\s/_/g' | grep -v "^#"`; do
             $IPTABLES -A INPUT -s $IP -m state --state NEW -j ACCEPT
@@ -99,6 +94,11 @@ case "$1" in
         ## DROP ALL CONNECTIONS FROM BLACKLIST FILE /etc/firewall/ip-blacklist.conf
         for IP in `cat /etc/firewall/ip-blacklist.conf | sed 's/\s/_/g' | grep -v "^#"`; do
             $IPTABLES -A INPUT -s $IP -m state --state NEW -j DROP
+        done;
+
+        # EXECUTE ALL CUSTOM SCRIPTS IN /etc/firewall/custom
+        for F in /etc/firewall/custom/*; do
+            . $F
         done;
 
         # ALLOWED PORTS/PROTOCOLS FROM /etc/firewall/services.conf
