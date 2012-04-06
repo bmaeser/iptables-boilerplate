@@ -47,8 +47,13 @@ case "$1" in
 
         ## portscan drop
         $IPTABLES -N portscan_drop
-        $IPTABLES -A portscan_drop -m limit --limit 7200/h -j LOG --log-prefix "POSSIBLE PORTSCAN"
+        $IPTABLES -A portscan_drop -m limit --limit 60/m -j LOG --log-prefix "PORTSCAN DETECTED"
         $IPTABLES -A portscan_drop -j DROP
+
+        ## invalid drop
+        $IPTABLES -N invalid_drop
+        $IPTABLES -A invalid_drop -m state --state INVALID -m limit --limit 60/m -j LOG --log-prefix "INVALID PACKAGE"
+        $IPTABLES -A invalid_drop -m state --state INVALID -j DROP
 
         #################################################################
         # IPv4 FORWARDING 
@@ -81,6 +86,11 @@ case "$1" in
         # EXTERNAL CONFIGS
         ##################################################################
 
+        # EXECUTE ALL CUSTOM SCRIPTS IN /etc/firewall/custom
+        for F in /etc/firewall/custom/*; do
+            . $F
+        done;
+
         ## ACCEPT ALL CONNECTIONS FROM WHITELIST FILE /etc/firewall/ip-whitelist.conf
         for IP in `cat /etc/firewall/ip-whitelist.conf | sed 's/\s/_/g' | grep -v "^#"`; do
             $IPTABLES -A INPUT -s $IP -m state --state NEW -j ACCEPT
@@ -109,19 +119,12 @@ case "$1" in
                 done <<< "$line"
         done;
 
-        # EXECUTE ALL CUSTOM SCRIPTS IN /etc/firewall/custom
-        for F in /etc/firewall/custom/*; do
-            . $F
-        done;
-
         #################################################################
         # drop and log invalid packages
         #################################################################
 
-        $IPTABLES -A INPUT -m state --state INVALID -m limit --limit 7200/h -j LOG --log-prefix "INPUT INVALID "
-        $IPTABLES -A INPUT -m state --state INVALID -j DROP
-        $IPTABLES -A OUTPUT -m state --state INVALID -m limit --limit 7200/h -j LOG --log-prefix "OUTPUT INVALID "
-        $IPTABLES -A OUTPUT -m state --state INVALID -j DROP
+        $IPTABLES -A INPUT -m state --state INVALID -j invalid_drop
+        $IPTABLES -A OUTPUT -m state --state INVALID -j invalid_drop
 
         ##################################################################
         # BROADCAST AND MULTICAST
@@ -259,6 +262,11 @@ case "$1" in
         $IPTABLES -P INPUT ACCEPT
         $IPTABLES -P OUTPUT ACCEPT
         $IPTABLES -P FORWARD ACCEPT
+
+        ## allow all ip IPv6 traffic
+        $IP6TABLES -P INPUT ACCEPT
+        $IP6TABLES -P OUTPUT ACCEPT
+        $IP6TABLES -P FORWARD ACCEPT
         
         echo "firewall stopped"
         ;;
@@ -277,6 +285,10 @@ case "$1" in
         echo "##################################################################"
         $IPTABLES -t mangle -L -vn
         ;;
+
+    version)
+        echo "Version: 1.0.1"
+        ;;
         
     restart|reload|force-reload)
         $0 stop
@@ -286,7 +298,7 @@ case "$1" in
 
       *)
         echo "Your are doing it wrong."
-        echo "Syntax: $0 {start|stop|restart|reload|force-reload|status}"
+        echo "Syntax: $0 {start|stop|restart|reload|force-reload|status|version}"
         exit 1
         ;;
 
