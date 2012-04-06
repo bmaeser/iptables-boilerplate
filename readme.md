@@ -113,6 +113,8 @@ n.n.n.n/m - Where n.n.n.n is the IP address range and m is the bitmask.
 Every file/script you place here will be executed during firewall-start.
 Place your custom rules in here.
 
+There are some usefull examples in ./custom-examples/ that limit the ammount of new and overall connections.
+
 ## Usage
 If you updated your runlevels, the firewall starts every time you boot your system.
 However, you can manually start/stop/restart, e.g. to update changed settings.
@@ -123,6 +125,7 @@ However, you can manually start/stop/restart, e.g. to update changed settings.
 * stop: stops the firewall
 * restart, reload, force-reload: restarts the firewall (all three the same)
 * status: print out the status of the firewall, shows all entries in iptables
+* version: print out the version of iptables-boilerplate
 
 ## How to contribute
 fork + hack + pull request please :-)
