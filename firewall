@@ -28,6 +28,18 @@ IP6TABLES=/sbin/ip6tables
 
 case "$1" in
     start)
+
+        #################################################################
+        # source configuration
+        #################################################################
+        if [ -f /etc/firewall/firewall.conf ] ; then
+            source /etc/firewall/firewall.conf
+        else 
+            echo "no configuration-file found in /etc/firewall/firewall.conf"
+            echo "aborting, firewall NOT startet"
+            exit 1
+        fi
+
         echo "starting firewall..."
 
         ## DELETE OLD RULES
@@ -59,13 +71,16 @@ case "$1" in
         # IPv4 FORWARDING 
         #################################################################
 
-        ## drop IPv4 forwarding
-        $IPTABLES -P FORWARD DROP
-
-        ## disable IPv4 forwarding ( ! overwrites sysctl settings ! )
-        echo 0 > /proc/sys/net/ipv4/ip_forward
-        echo 0 > /proc/sys/net/ipv4/conf/all/forwarding
-        echo 0 > /proc/sys/net/ipv4/conf/default/forwarding
+        if $ipv4_forwarding ; then
+            $IPTABLES -P FORWARD ACCEPT
+        else
+            ## drop IPv4 forwarding
+            $IPTABLES -P FORWARD DROP
+            ## disable IPv4 forwarding ( ! overwrites sysctl settings ! )
+            echo 0 > /proc/sys/net/ipv4/ip_forward
+            echo 0 > /proc/sys/net/ipv4/conf/all/forwarding
+            echo 0 > /proc/sys/net/ipv4/conf/default/forwarding
+        fi
 
         #################################################################
         # ALLOW DEFAULTS
@@ -123,122 +138,161 @@ case "$1" in
         # drop and log invalid packages
         #################################################################
 
-        $IPTABLES -A INPUT -m state --state INVALID -j invalid_drop
-        $IPTABLES -A OUTPUT -m state --state INVALID -j invalid_drop
+        if $drop_invalid ; then
+            $IPTABLES -A INPUT -m state --state INVALID -j invalid_drop
+            $IPTABLES -A OUTPUT -m state --state INVALID -j invalid_drop
+        fi
 
         ##################################################################
         # BROADCAST AND MULTICAST
         ##################################################################
 
-        $IPTABLES -A INPUT -m pkttype --pkt-type broadcast -j DROP
-        $IPTABLES -A INPUT -m pkttype --pkt-type multicast -j DROP
+        if $drop_broadcast ; then
+            $IPTABLES -A INPUT -m pkttype --pkt-type broadcast -j DROP
+            $IPTABLES -A INPUT -m pkttype --pkt-type multicast -j DROP
+        fi
 
         ##################################################################
         # PORTSCAN DETECTION
         ##################################################################
 
-        ## nmap Null scans / no flags
-        $IPTABLES -A INPUT -p tcp --tcp-flags ALL NONE -j portscan_drop
-        ## nmap FIN stealth scan
-        $IPTABLES -A INPUT -p tcp --tcp-flags ALL FIN -j portscan_drop
-        ## SYN + FIN
-        $IPTABLES -A INPUT -p tcp --tcp-flags SYN,FIN SYN,FIN -j portscan_drop
-        ## SYN + RST
-        $IPTABLES -A INPUT -p tcp --tcp-flags SYN,RST SYN,RST -j portscan_drop
-        ## FIN + RST
-        $IPTABLES -A INPUT -p tcp --tcp-flags FIN,RST FIN,RST -j portscan_drop
-        ## FIN + URG + PSH
-        $IPTABLES -A INPUT -p tcp --tcp-flags ALL FIN,URG,PSH -j portscan_drop
-        ## XMAS
-        $IPTABLES -A INPUT -p tcp --tcp-flags ALL URG,ACK,PSH,RST,SYN,FIN -j portscan_drop
-        ## ALL
-        $IPTABLES -A INPUT -p tcp --tcp-flags ALL ALL -j portscan_drop
-        ## FIN/PSH/URG without ACK
-        $IPTABLES -A INPUT -p tcp --tcp-flags ACK,FIN FIN -j portscan_drop
-        $IPTABLES -A INPUT -p tcp --tcp-flags ACK,PSH PSH -j portscan_drop
-        $IPTABLES -A INPUT -p tcp --tcp-flags ACK,URG URG -j portscan_drop
+        if $drop_portscan ; then
+            ## nmap Null scans / no flags
+            $IPTABLES -A INPUT -p tcp --tcp-flags ALL NONE -j portscan_drop
+            ## nmap FIN stealth scan
+            $IPTABLES -A INPUT -p tcp --tcp-flags ALL FIN -j portscan_drop
+            ## SYN + FIN
+            $IPTABLES -A INPUT -p tcp --tcp-flags SYN,FIN SYN,FIN -j portscan_drop
+            ## SYN + RST
+            $IPTABLES -A INPUT -p tcp --tcp-flags SYN,RST SYN,RST -j portscan_drop
+            ## FIN + RST
+            $IPTABLES -A INPUT -p tcp --tcp-flags FIN,RST FIN,RST -j portscan_drop
+            ## FIN + URG + PSH
+            $IPTABLES -A INPUT -p tcp --tcp-flags ALL FIN,URG,PSH -j portscan_drop
+            ## XMAS
+            $IPTABLES -A INPUT -p tcp --tcp-flags ALL URG,ACK,PSH,RST,SYN,FIN -j portscan_drop
+            ## ALL
+            $IPTABLES -A INPUT -p tcp --tcp-flags ALL ALL -j portscan_drop
+            ## FIN/PSH/URG without ACK
+            $IPTABLES -A INPUT -p tcp --tcp-flags ACK,FIN FIN -j portscan_drop
+            $IPTABLES -A INPUT -p tcp --tcp-flags ACK,PSH PSH -j portscan_drop
+            $IPTABLES -A INPUT -p tcp --tcp-flags ACK,URG URG -j portscan_drop
+        fi
 
         ##################################################################
         # USEFULL OPTIONS ( ! overwrites sysctl settings ! )
         ##################################################################
 
-        ## allow only ICMP redirects from our own gateway
-        echo 1 > /proc/sys/net/ipv4/conf/all/secure_redirects
-        echo 1 > /proc/sys/net/ipv4/conf/default/secure_redirects
+        if $secure_redirects ; then
+            ## allow only ICMP redirects from our own gateway
+            echo 1 > /proc/sys/net/ipv4/conf/all/secure_redirects
+            echo 1 > /proc/sys/net/ipv4/conf/default/secure_redirects
+        fi
 
-        ## dont accept ICMP redirects
-        echo 0 > /proc/sys/net/ipv4/conf/all/accept_redirects
-        echo 0 > /proc/sys/net/ipv4/conf/default/accept_redirects
+        if $block_redirects ; then
+            ## dont accept ICMP redirects
+            echo 0 > /proc/sys/net/ipv4/conf/all/accept_redirects
+            echo 0 > /proc/sys/net/ipv4/conf/default/accept_redirects
+            ## dont sent ICMP redirects
+            echo 0 > /proc/sys/net/ipv4/conf/all/send_redirects
+            echo 0 > /proc/sys/net/ipv4/conf/default/send_redirects
+        fi
 
-        ## dont sent ICMP redirects
-        echo 0 > /proc/sys/net/ipv4/conf/all/send_redirects
-        echo 0 > /proc/sys/net/ipv4/conf/default/send_redirects
+        if $ignore_broadcast_icmp ; then
+            ## ignore broadcast/multicast ICMP // smurf-attack prevention
+            echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+        fi
 
-        ## ignore broadcast/multicast ICMP // smurf-attack prevention
-        echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
-
-        ## ignore bogus error responses
-        echo 1 > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses
+        if $ignore_bogus_errors ; then
+            ## ignore bogus error responses
+            echo 1 > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses
+        fi
 
         ## dont ignore pings
         echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_all
 
-        ## allow no source route packages
-        echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
-        echo 0 > /proc/sys/net/ipv4/conf/default/accept_source_route
+        if $block_source_route_packages ; then
+            ## allow no source route packages
+            echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
+            echo 0 > /proc/sys/net/ipv4/conf/default/accept_source_route
+        fi
 
-        ## we dont want to proxy arp
-        echo 0 > /proc/sys/net/ipv4/conf/all/proxy_arp
-        echo 0 > /proc/sys/net/ipv4/conf/default/proxy_arp
+        if $block_proxy_arp ; then
+            ## we dont want to proxy arp
+            echo 0 > /proc/sys/net/ipv4/conf/all/proxy_arp
+            echo 0 > /proc/sys/net/ipv4/conf/default/proxy_arp
+        fi
 
-        ## enable syn-cookies // syn-flood prevention
-        echo 1 > /proc/sys/net/ipv4/tcp_syncookies
-        echo 2048 > /proc/sys/net/ipv4/tcp_max_syn_backlog
-        echo 5 > /proc/sys/net/ipv4/tcp_syn_retries
-        echo 5 > /proc/sys/net/ipv4/tcp_synack_retries
+        if $enable_syn_cookies ; then
+            ## enable syn-cookies // syn-flood prevention
+            echo 1 > /proc/sys/net/ipv4/tcp_syncookies
+            echo 2048 > /proc/sys/net/ipv4/tcp_max_syn_backlog
+            echo 5 > /proc/sys/net/ipv4/tcp_syn_retries
+            echo 5 > /proc/sys/net/ipv4/tcp_synack_retries
+        fi
 
-        ## enable reverse path filter // RFC1812 // spoofing attack prevention
-        echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
-        echo 1 > /proc/sys/net/ipv4/conf/default/rp_filter
+        if $enable_reverse_path ; then
+            ## enable reverse path filter // RFC1812 // spoofing attack prevention
+            echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
+            echo 1 > /proc/sys/net/ipv4/conf/default/rp_filter
+        fi
 
-        ## no relaying of bootp
-        echo 0 > /proc/sys/net/ipv4/conf/all/bootp_relay
-        echo 0 > /proc/sys/net/ipv4/conf/default/bootp_relay
+        if $disable_bootp_relay ; then
+            ## no relaying of bootp
+            echo 0 > /proc/sys/net/ipv4/conf/all/bootp_relay
+            echo 0 > /proc/sys/net/ipv4/conf/default/bootp_relay
+        fi
 
-        ## do not log martian packets
-        echo 0 > /proc/sys/net/ipv4/conf/all/log_martians
-        echo 0 > /proc/sys/net/ipv4/conf/default/log_martians
+        if $disable_martian_loging ; then
+            ## do not log martian packets
+            echo 0 > /proc/sys/net/ipv4/conf/all/log_martians
+            echo 0 > /proc/sys/net/ipv4/conf/default/log_martians
+        fi
 
-        ## dont allow SRR
-        echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
-        echo 0 > /proc/sys/net/ipv4/conf/default/accept_source_route
+        if $disable_srr ; then
+            ## dont allow SRR
+            echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
+            echo 0 > /proc/sys/net/ipv4/conf/default/accept_source_route
+        fi
 
-        ## enable SACK
-        echo 1 > /proc/sys/net/ipv4/tcp_sack
-        echo 1 > /proc/sys/net/ipv4/tcp_dsack
-        echo 1 > /proc/sys/net/ipv4/tcp_fack
+        if $enable_sack ; then
+            ## enable enable_sack
+            echo 1 > /proc/sys/net/ipv4/tcp_sack
+            echo 1 > /proc/sys/net/ipv4/tcp_dsack
+            echo 1 > /proc/sys/net/ipv4/tcp_fack
+        fi
 
         #################################################################
         # IPv6 
         #################################################################
 
-        ## allow on loopback
-        $IP6TABLES -A INPUT -i lo -j ACCEPT
-        $IP6TABLES -A OUTPUT -o lo -j ACCEPT
+        if $ipv6_loopback_ok ; then
+            ## allow on loopback
+            $IP6TABLES -A INPUT -i lo -j ACCEPT
+            $IP6TABLES -A OUTPUT -o lo -j ACCEPT
+        fi
 
-        ## drop all ip IPv6 traffic
-        $IP6TABLES -P INPUT DROP
-        $IP6TABLES -P OUTPUT DROP
+        if $ipv6_drop_all ; then
+            ## drop all ip IPv6 traffic
+            $IP6TABLES -P INPUT DROP
+            $IP6TABLES -P OUTPUT DROP
+        fi
 
-        ## drop IPv6 forwarding
-        $IP6TABLES -P FORWARD DROP
-        ## disable IPv6 forwarding ( ! overwrites sysctl settings ! )
-        echo 0 > /proc/sys/net/ipv6/conf/all/forwarding
-        echo 0 > /proc/sys/net/ipv6/conf/default/forwarding
+        if $ipv6_forwarding ; then
+            $IP6TABLES -P FORWARD ACCEPT
+        else
+            ## drop IPv6 forwarding
+            $IP6TABLES -P FORWARD DROP
+            ## disable IPv6 forwarding ( ! overwrites sysctl settings ! )
+            echo 0 > /proc/sys/net/ipv6/conf/all/forwarding
+            echo 0 > /proc/sys/net/ipv6/conf/default/forwarding
+        fi
 
-        ## disable IPv6 ( ! overwrites sysctl settings ! )
-        #echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
-        #echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6
+        if $ipv6_disabled ; then
+            ## disable IPv6 ( ! overwrites sysctl settings ! )
+            echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+            echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6
+        fi
 
         ##################################################################
         # FINAL RULES
