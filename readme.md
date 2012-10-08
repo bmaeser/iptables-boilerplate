@@ -14,7 +14,9 @@ think of "lamp"-servers.
 * Ubuntu 10.10 / Maverick
 * Ubuntu 11.04 / Natty
 * Ubuntu 11.10 / Oneiric
-* Ubuntu 12.04 / Precise
+* Ubuntu 12.04 LTS / Precise
+
+we will support every LTS (Ubuntu) and stable (Debian) version (at least thats the plan)
 
 #### Features
 * rock solid defaults
