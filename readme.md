@@ -50,6 +50,10 @@ All configuration-files are to be found at /etc/firewall/
 
 Feel free to read the firewall-script itself and comment/uncomment what you like or dislike.
 
+#### firewall.conf
+Main firewall configfile. All settings are on sane defaults, you really should know what you do
+if you change them.
+
 #### services.conf
 This file is used to open ports for services like ssh or http(s) in your firewall.
 
