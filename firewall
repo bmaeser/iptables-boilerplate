@@ -341,7 +341,7 @@ case "$1" in
         ;;
 
     version)
-        echo "Version: 1.0.1"
+        echo "Version: 1.1.0"
         ;;
         
     restart|reload|force-reload)
