@@ -114,9 +114,11 @@ case "$1" in
         done;
 
         # EXECUTE ALL CUSTOM SCRIPTS IN /etc/firewall/custom
-        for F in /etc/firewall/custom/*; do
-            . $F
-        done;
+        if [ "$(ls -A /etc/firewall/custom)" ]; then
+            for F in /etc/firewall/custom/*; do
+                . $F
+            done;
+        fi
 
         # ALLOWED PORTS/PROTOCOLS FROM /etc/firewall/services.conf
         cat /etc/firewall/services.conf | grep -v "^#" | while read line; do
