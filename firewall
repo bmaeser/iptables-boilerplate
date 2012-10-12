@@ -73,6 +73,8 @@ case "$1" in
 
         if $ipv4_forwarding ; then
             $IPTABLES -P FORWARD ACCEPT
+            ## enable IPv4 forwarding ( ! overwrites sysctl settings ! )
+            echo 1 > /proc/sys/net/ipv4/ip_forward
         else
             ## drop IPv4 forwarding
             $IPTABLES -P FORWARD DROP
@@ -341,7 +343,7 @@ case "$1" in
         ;;
 
     version)
-        echo "Version: 1.1.0"
+        echo "Version: 1.1.1"
         ;;
         
     restart|reload|force-reload)
