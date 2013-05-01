@@ -306,10 +306,14 @@ case "$1" in
         $IPTABLES -A INPUT -j LOG
         $IPTABLES -A INPUT -j REJECT
         
-        echo "firewall started"
-        ;;
+       echo "firewall started"
+       echo "restarting fail2ban"
+	   /etc/init.d/fail2ban restart
+       ;;
 
     stop)
+	    echo "stopping fail2ban"
+	    /etc/init.d/fail2ban stop
         echo "stopping firewall..."
         
         ## delete old rules
