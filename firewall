@@ -94,6 +94,7 @@ case "$1" in
 
         ## allow anything on loopback
         $IPTABLES -A INPUT -i lo -j ACCEPT
+        $IPTABLES -A INPUT ! -i lo -d 127.0.0.0/8 -j REJECT -m comment --comment "Block access to localhost"
         $IPTABLES -A OUTPUT -o lo -j ACCEPT
 
         ## allow ICMP
