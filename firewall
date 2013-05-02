@@ -42,9 +42,13 @@ case "$1" in
 
         echo "starting firewall..."
 
-        ## DELETE OLD RULES
+        ## delete old rules
         $IPTABLES -F
         $IPTABLES -X
+
+        ## delete old rules IPv6
+        $IP6TABLES -F
+        $IP6TABLES -X
 
         #################################################################
         # DEFAULT POLICIES
@@ -59,12 +63,12 @@ case "$1" in
 
         ## portscan drop
         $IPTABLES -N portscan_drop
-        $IPTABLES -A portscan_drop -m limit --limit 60/m -j LOG --log-prefix "PORTSCAN DETECTED"
+        $IPTABLES -A portscan_drop -m limit --limit 60/m -j LOG --log-prefix "PORTSCAN DETECTED" --log-level info
         $IPTABLES -A portscan_drop -j DROP
 
         ## invalid drop
         $IPTABLES -N invalid_drop
-        $IPTABLES -A invalid_drop -m state --state INVALID -m limit --limit 60/m -j LOG --log-prefix "INVALID PACKAGE"
+        $IPTABLES -A invalid_drop -m state --state INVALID -m limit --limit 60/m -j LOG --log-prefix "INVALID PACKAGE" --log-level info
         $IPTABLES -A invalid_drop -m state --state INVALID -j DROP
 
         #################################################################
@@ -284,6 +288,7 @@ case "$1" in
         if $ipv6_loopback_ok ; then
             ## allow on loopback
             $IP6TABLES -A INPUT -i lo -j ACCEPT
+            $IP6TABLES -A INPUT -d ::1 -j REJECT
             $IP6TABLES -A OUTPUT -o lo -j ACCEPT
         fi
 
@@ -314,7 +319,7 @@ case "$1" in
         ##################################################################
 
         ## log all other packages and reject them
-        $IPTABLES -A INPUT -j LOG
+        $IPTABLES -A INPUT -j LOG --log-prefix "FIREWALL: RESET PORT" --log-level info
         $IPTABLES -A INPUT -j REJECT
         
        echo "firewall started"
@@ -330,6 +335,10 @@ case "$1" in
         ## delete old rules
         $IPTABLES -F
         $IPTABLES -X
+
+        ## delete old rules IPv6
+        $IP6TABLES -F
+        $IP6TABLES -X
         
         ## allow anything
         $IPTABLES -P INPUT ACCEPT
