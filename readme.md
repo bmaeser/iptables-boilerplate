@@ -7,16 +7,15 @@ its not a set of rules, designed to secure your home or office-network or to set
 think of "lamp"-servers.
 
 #### iptables-boilerplate is tested on
-* Debian 5.0 / Lenny (oldstable)
-* Debian 6.0 / Squeeze (stable)
-* Debian 7.0 / Wheezy (testing)
+* Debian 6.0 / Squeeze (oldstable)
+* Debian 7.0 / Wheezy (stable)
+* Debian 8.0 / Jessie (testing)
 * Ubuntu 10.04 LTS / Lucid
-* Ubuntu 10.10 / Maverick
-* Ubuntu 11.04 / Natty
-* Ubuntu 11.10 / Oneiric
 * Ubuntu 12.04 LTS / Precise
+* Ubuntu 12.10 / Quantal
+* Ubuntu 14.04 / Raring
 
-we will support every LTS (Ubuntu) and stable (Debian) version (at least thats the plan)
+we will support every LTS (Ubuntu) and stable (Debian) version.
 
 #### Features
 * rock solid defaults
