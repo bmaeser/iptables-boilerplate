@@ -13,7 +13,7 @@ think of "lamp"-servers.
 * Ubuntu 10.04 LTS / Lucid
 * Ubuntu 12.04 LTS / Precise
 * Ubuntu 12.10 / Quantal
-* Ubuntu 14.04 / Raring
+* Ubuntu 13.04 / Raring
 
 we will support every LTS (Ubuntu) and stable (Debian) version.
 
