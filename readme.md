@@ -40,7 +40,7 @@ checkout the github repo and install the files
     cd etc/firewall/
     sudo cp *.conf /etc/firewall/
     
-make sure firewall ist executable and update runnlevels
+make sure firewall is executable and update runnlevels
 
     sudo chmod 755 /etc/init.d/firewall
     sudo update-rc.d firewall defaults
