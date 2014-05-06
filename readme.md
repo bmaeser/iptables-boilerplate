@@ -12,8 +12,8 @@ think of "lamp"-servers.
 * Debian 8.0 / Jessie (testing)
 * Ubuntu 10.04 LTS / Lucid
 * Ubuntu 12.04 LTS / Precise
-* Ubuntu 12.10 / Quantal
-* Ubuntu 13.04 / Raring
+* Ubuntu 13.10 / Raring
+* Ubuntu 14.04 LTS / Trusty
 
 we will support every LTS (Ubuntu) and stable (Debian) version.
 
