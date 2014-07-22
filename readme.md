@@ -27,6 +27,25 @@ we will support every LTS (Ubuntu) and stable (Debian) version.
 
 ## Installation
 
+### Easy Install
+On Ubuntu and Debain you can use `make` to install or uninstall.
+
+Make sure `make` is installed:
+
+    sudo apt-get install make
+
+And follow these steps to install:
+
+    git clone git://github.com/bmaeser/iptables-boilerplate.git
+    cd iptables-boilerplate
+    make
+
+To uninstall run:
+
+    make uninstall
+
+### On other systems
+
 create necessary directories first
     
     sudo mkdir /etc/firewall
