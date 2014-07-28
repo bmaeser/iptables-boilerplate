@@ -38,11 +38,11 @@ And follow these steps to install:
 
     git clone git://github.com/bmaeser/iptables-boilerplate.git
     cd iptables-boilerplate
-    make
+    sudo make
 
 To uninstall run:
 
-    make uninstall
+    sudo make uninstall
 
 ### On other systems
 
