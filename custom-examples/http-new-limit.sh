@@ -13,7 +13,7 @@
 
 
 ## we allow at max 2 new connections per second
-CONNECTIONS=2
+CONNECTIONS=8
 SECONDS=1
 
 
