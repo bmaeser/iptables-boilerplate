@@ -42,9 +42,13 @@ case "$1" in
 
         echo "starting firewall..."
 
-        ## DELETE OLD RULES
+        ## delete old rules
         $IPTABLES -F
         $IPTABLES -X
+
+        ## delete old rules IPv6
+        $IP6TABLES -F
+        $IP6TABLES -X
 
         #################################################################
         # DEFAULT POLICIES
@@ -59,12 +63,12 @@ case "$1" in
 
         ## portscan drop
         $IPTABLES -N portscan_drop
-        $IPTABLES -A portscan_drop -m limit --limit 60/m -j LOG --log-prefix "PORTSCAN DETECTED"
+        $IPTABLES -A portscan_drop -m limit --limit 60/m -j LOG --log-prefix "PORTSCAN DETECTED" --log-level info
         $IPTABLES -A portscan_drop -j DROP
 
         ## invalid drop
         $IPTABLES -N invalid_drop
-        $IPTABLES -A invalid_drop -m state --state INVALID -m limit --limit 60/m -j LOG --log-prefix "INVALID PACKAGE"
+        $IPTABLES -A invalid_drop -m state --state INVALID -m limit --limit 60/m -j LOG --log-prefix "INVALID PACKAGE" --log-level info
         $IPTABLES -A invalid_drop -m state --state INVALID -j DROP
 
         #################################################################
@@ -90,6 +94,7 @@ case "$1" in
 
         ## allow anything on loopback
         $IPTABLES -A INPUT -i lo -j ACCEPT
+        $IPTABLES -A INPUT ! -i lo -d 127.0.0.0/8 -j REJECT -m comment --comment "Block access to localhost"
         $IPTABLES -A OUTPUT -o lo -j ACCEPT
 
         ## allow ICMP
@@ -162,24 +167,35 @@ case "$1" in
 
         if $drop_portscan ; then
             ## nmap Null scans / no flags
+            $IPTABLES -A INPUT -p tcp --tcp-flags ALL NONE -j LOG --log-prefix "FIREWALL: no flags" --log-level info
             $IPTABLES -A INPUT -p tcp --tcp-flags ALL NONE -j portscan_drop
             ## nmap FIN stealth scan
+            $IPTABLES -A INPUT -p tcp --tcp-flags ALL FIN -j LOG --log-prefix "FIREWALL: stealth scan" --log-level info
             $IPTABLES -A INPUT -p tcp --tcp-flags ALL FIN -j portscan_drop
             ## SYN + FIN
+            $IPTABLES -A INPUT -p tcp --tcp-flags SYN,FIN SYN,FIN -j LOG --log-prefix "FIREWALL: SYN + FIN" --log-level info
             $IPTABLES -A INPUT -p tcp --tcp-flags SYN,FIN SYN,FIN -j portscan_drop
             ## SYN + RST
+            $IPTABLES -A INPUT -p tcp --tcp-flags SYN,RST SYN,RST -j LOG --log-prefix "FIREWALL: SYN + RST" --log-level info
             $IPTABLES -A INPUT -p tcp --tcp-flags SYN,RST SYN,RST -j portscan_drop
             ## FIN + RST
+            $IPTABLES -A INPUT -p tcp --tcp-flags FIN,RST FIN,RST -j LOG --log-prefix "FIREWALL: FIN + RST" --log-level info
             $IPTABLES -A INPUT -p tcp --tcp-flags FIN,RST FIN,RST -j portscan_drop
             ## FIN + URG + PSH
+            $IPTABLES -A INPUT -p tcp --tcp-flags ALL FIN,URG,PSH -j LOG --log-prefix "FIREWALL: FIN + URG + PSH" --log-level info
             $IPTABLES -A INPUT -p tcp --tcp-flags ALL FIN,URG,PSH -j portscan_drop
             ## XMAS
+            $IPTABLES -A INPUT -p tcp --tcp-flags ALL URG,ACK,PSH,RST,SYN,FIN -j LOG --log-prefix "FIREWALL: XMAS" --log-level info
             $IPTABLES -A INPUT -p tcp --tcp-flags ALL URG,ACK,PSH,RST,SYN,FIN -j portscan_drop
             ## ALL
+            $IPTABLES -A INPUT -p tcp --tcp-flags ALL ALL -j LOG --log-prefix "FIREWALL: ALL" --log-level info
             $IPTABLES -A INPUT -p tcp --tcp-flags ALL ALL -j portscan_drop
             ## FIN/PSH/URG without ACK
+            $IPTABLES -A INPUT -p tcp --tcp-flags ACK,FIN FIN -j LOG --log-prefix "FIREWALL: FPU without ACK" --log-level info
             $IPTABLES -A INPUT -p tcp --tcp-flags ACK,FIN FIN -j portscan_drop
+            $IPTABLES -A INPUT -p tcp --tcp-flags ACK,PSH PSH -j LOG --log-prefix "FIREWALL: FPU without ACK" --log-level info
             $IPTABLES -A INPUT -p tcp --tcp-flags ACK,PSH PSH -j portscan_drop
+            $IPTABLES -A INPUT -p tcp --tcp-flags ACK,URG URG -j LOG --log-prefix "FIREWALL: FPU without ACK" --log-level info
             $IPTABLES -A INPUT -p tcp --tcp-flags ACK,URG URG -j portscan_drop
         fi
 
@@ -273,6 +289,7 @@ case "$1" in
         if $ipv6_loopback_ok ; then
             ## allow on loopback
             $IP6TABLES -A INPUT -i lo -j ACCEPT
+            $IP6TABLES -A INPUT -d ::1 -j REJECT
             $IP6TABLES -A OUTPUT -o lo -j ACCEPT
         fi
 
@@ -303,18 +320,26 @@ case "$1" in
         ##################################################################
 
         ## log all other packages and reject them
-        $IPTABLES -A INPUT -j LOG
+        $IPTABLES -A INPUT -j LOG --log-prefix "FIREWALL: RESET PORT" --log-level info
         $IPTABLES -A INPUT -j REJECT
         
-        echo "firewall started"
-        ;;
+       echo "firewall started"
+       echo "restarting fail2ban"
+	   /etc/init.d/fail2ban restart
+       ;;
 
     stop)
+	    echo "stopping fail2ban"
+	    /etc/init.d/fail2ban stop
         echo "stopping firewall..."
         
         ## delete old rules
         $IPTABLES -F
         $IPTABLES -X
+
+        ## delete old rules IPv6
+        $IP6TABLES -F
+        $IP6TABLES -X
         
         ## allow anything
         $IPTABLES -P INPUT ACCEPT
