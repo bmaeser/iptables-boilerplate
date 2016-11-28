@@ -56,7 +56,7 @@ checkout the github repo and install the files
     git clone git://github.com/bmaeser/iptables-boilerplate.git
     cd iptables-boilerplate
     sudo cp firewall /etc/init.d/firewall
-    cd etc/firewall/
+    cd /etc/firewall/
     sudo cp *.conf /etc/firewall/
     
 make sure firewall is executable and update runnlevels
