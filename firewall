@@ -44,7 +44,12 @@ case "$1" in
 
         ## DELETE OLD RULES
         $IPTABLES -F
+        $IPTABLES -t nat -F 
+        $IPTABLES -t mangle -F
+
         $IPTABLES -X
+        $IPTABLES -t nat -X
+        $IPTABLES -t mangle -X
 
         #################################################################
         # DEFAULT POLICIES
@@ -314,7 +319,12 @@ case "$1" in
         
         ## delete old rules
         $IPTABLES -F
+	    $IPTABLES -t nat -F
+	    $IPTABLES -t mangle -F
+
         $IPTABLES -X
+	    $IPTABLES -t nat -X
+	    $IPTABLES -t mangle -X
         
         ## allow anything
         $IPTABLES -P INPUT ACCEPT
