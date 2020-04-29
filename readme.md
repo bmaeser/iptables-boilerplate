@@ -1,3 +1,7 @@
+# project unmaintained!
+
+use with caution
+
 # iptables-boilerplate
 rock solid default firewall-rules for webhosts
 
